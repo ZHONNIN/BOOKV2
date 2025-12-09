@@ -35,8 +35,8 @@
         scene.background = new THREE.Color(0x2a2a2a);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 200);
-        camera.position.set(0, 2, 5);
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, 1.2, 4);
+        camera.lookAt(0, 1, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -70,7 +70,7 @@
                 side: THREE.DoubleSide
             });
             const leftPage = new THREE.Mesh(leftPageGeo, leftPageMat);
-            leftPage.position.set(BOOK_WIDTH / 2, 0, zOffset);
+            leftPage.position.set(0, 0, zOffset);
             pivot.add(leftPage);
 
             const rightPageGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, PAGE_THICKNESS);
@@ -79,7 +79,7 @@
                 side: THREE.DoubleSide
             });
             const rightPage = new THREE.Mesh(rightPageGeo, rightPageMat);
-            rightPage.position.set(BOOK_WIDTH / 2, 0, zOffset);
+            rightPage.position.set(0, 0, zOffset);
             pivot.add(rightPage);
 
             return { pivot, leftPage, rightPage };
@@ -101,7 +101,7 @@
             side: THREE.DoubleSide
         });
         const frontCoverMesh = new THREE.Mesh(frontCoverGeo, frontCoverMat);
-        frontCoverMesh.position.set(BOOK_WIDTH / 2, 0, (NUM_SHEETS + 0.5) * PAGE_THICKNESS * 2 + COVER_THICKNESS / 2);
+        frontCoverMesh.position.set(BOOK_WIDTH / 2, 0, COVER_THICKNESS / 2);
         frontCoverPivot.add(frontCoverMesh);
 
         const backCoverPivot = new THREE.Group();
@@ -115,7 +115,7 @@
             side: THREE.DoubleSide
         });
         const backCoverMesh = new THREE.Mesh(backCoverGeo, backCoverMat);
-        backCoverMesh.position.set(BOOK_WIDTH / 2, 0, -((NUM_SHEETS + 0.5) * PAGE_THICKNESS * 2 + COVER_THICKNESS / 2));
+        backCoverMesh.position.set(BOOK_WIDTH / 2, 0, -COVER_THICKNESS / 2);
         backCoverPivot.add(backCoverMesh);
 
         let currentIndex = -1;
