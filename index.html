@@ -2,236 +2,114 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>3D Book</title>
+    <title>Flipbook</title>
     <style>
         body {
             margin: 0;
-            overflow: hidden;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #e8e8e8;
+            font-family: Arial, sans-serif;
         }
-        canvas {
-            display: block;
+        #book {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            perspective: 1500px;
+        }
+        .page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: left center;
+            transition: transform 0.8s ease-in-out;
+            backface-visibility: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .page:nth-child(1) {
+            background: #8b4513;
+            color: white;
+        }
+        .page:nth-child(2),
+        .page:nth-child(3),
+        .page:nth-child(4),
+        .page:nth-child(5),
+        .page:nth-child(6),
+        .page:nth-child(7) {
+            background: #fffef0;
+            color: #333;
+        }
+        .page:nth-child(8) {
+            background: #654321;
+            color: white;
+        }
+        .flipped {
+            transform: rotateY(-180deg);
         }
     </style>
 </head>
 <body>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-        }
-    }
-    </script>
-    <script type="module">
-        import * as THREE from 'three';
+    <div id="book">
+        <div class="page">Front Cover</div>
+        <div class="page">Page 2</div>
+        <div class="page">Page 3</div>
+        <div class="page">Page 4</div>
+        <div class="page">Page 5</div>
+        <div class="page">Page 6</div>
+        <div class="page">Page 7</div>
+        <div class="page">Back Cover</div>
+    </div>
+    <script>
+        let currentPage = 0;
+        const pages = document.querySelectorAll('.page');
+        const totalPages = pages.length;
 
-        const BOOK_WIDTH = 2.0;
-        const BOOK_HEIGHT = 3.0;
-        const SPINE_THICKNESS = 0.02;
-        const COVER_THICKNESS = 0.04;
-        const PAGE_THICKNESS = 0.01;
-        const NUM_SHEETS = 6;
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x2a2a2a);
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 200);
-        camera.position.set(0, 1.2, 4);
-        camera.lookAt(0, 1, 0);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-
-        const keyLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        keyLight.position.set(10, 10, 10);
-        scene.add(keyLight);
-
-        const bookGroup = new THREE.Group();
-        scene.add(bookGroup);
-
-        const spinePivot = new THREE.Group();
-        spinePivot.position.x = -BOOK_WIDTH / 2;
-        bookGroup.add(spinePivot);
-
-        const pagePairs = [];
-
-        function createPagePair(index) {
-            const pivot = new THREE.Group();
-            pivot.position.x = -BOOK_WIDTH / 2;
-
-            const zOffset = (NUM_SHEETS - index - 0.5) * PAGE_THICKNESS * 2;
-
-            const leftPageGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, PAGE_THICKNESS);
-            const leftPageMat = new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.1, 0.3, 0.85),
-                side: THREE.DoubleSide
-            });
-            const leftPage = new THREE.Mesh(leftPageGeo, leftPageMat);
-            leftPage.position.set(0, 0, zOffset);
-            pivot.add(leftPage);
-
-            const rightPageGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, PAGE_THICKNESS);
-            const rightPageMat = new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.1, 0.3, 0.9),
-                side: THREE.DoubleSide
-            });
-            const rightPage = new THREE.Mesh(rightPageGeo, rightPageMat);
-            rightPage.position.set(0, 0, zOffset);
-            pivot.add(rightPage);
-
-            return { pivot, leftPage, rightPage };
-        }
-
-        for (let i = 0; i < NUM_SHEETS; i++) {
-            const pair = createPagePair(i);
-            pagePairs.push(pair);
-            bookGroup.add(pair.pivot);
-        }
-
-        const frontCoverPivot = new THREE.Group();
-        frontCoverPivot.position.x = -BOOK_WIDTH / 2;
-        bookGroup.add(frontCoverPivot);
-
-        const frontCoverGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, COVER_THICKNESS);
-        const frontCoverMat = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            side: THREE.DoubleSide
-        });
-        const frontCoverMesh = new THREE.Mesh(frontCoverGeo, frontCoverMat);
-        frontCoverMesh.position.set(BOOK_WIDTH / 2, 0, COVER_THICKNESS / 2);
-        frontCoverPivot.add(frontCoverMesh);
-
-        const backCoverPivot = new THREE.Group();
-        backCoverPivot.position.x = -BOOK_WIDTH / 2;
-        backCoverPivot.rotation.y = Math.PI;
-        bookGroup.add(backCoverPivot);
-
-        const backCoverGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, COVER_THICKNESS);
-        const backCoverMat = new THREE.MeshStandardMaterial({
-            color: 0x654321,
-            side: THREE.DoubleSide
-        });
-        const backCoverMesh = new THREE.Mesh(backCoverGeo, backCoverMat);
-        backCoverMesh.position.set(BOOK_WIDTH / 2, 0, -COVER_THICKNESS / 2);
-        backCoverPivot.add(backCoverMesh);
-
-        let currentIndex = -1;
-        let isAnimating = false;
-        let animationQueue = [];
-
-        class FlipAnimation {
-            constructor(pivot, targetRotation, duration, callback) {
-                this.pivot = pivot;
-                this.startRotation = pivot.rotation.y;
-                this.targetRotation = targetRotation;
-                this.duration = duration;
-                this.elapsed = 0;
-                this.callback = callback;
-            }
-
-            update(delta) {
-                this.elapsed += delta;
-                const progress = Math.min(this.elapsed / this.duration, 1);
-                const eased = progress < 0.5
-                    ? 4 * progress * progress * progress
-                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-                this.pivot.rotation.y = this.startRotation + (this.targetRotation - this.startRotation) * eased;
-
-                if (progress >= 1) {
-                    this.pivot.rotation.y = this.targetRotation;
-                    if (this.callback) this.callback();
-                    return true;
+        function updateZIndex() {
+            pages.forEach((page, index) => {
+                if (index < currentPage) {
+                    page.style.zIndex = index;
+                } else {
+                    page.style.zIndex = totalPages - index + totalPages;
                 }
-                return false;
-            }
+            });
         }
-
-        let currentAnimation = null;
 
         function flipForward() {
-            if (isAnimating) return;
-
-            isAnimating = true;
-
-            if (currentIndex === -1) {
-                currentAnimation = new FlipAnimation(frontCoverPivot, Math.PI, 0.6, () => {
-                    currentIndex++;
-                    isAnimating = false;
-                    currentAnimation = null;
-                });
-            } else if (currentIndex < NUM_SHEETS) {
-                const targetPivot = pagePairs[currentIndex].pivot;
-                currentAnimation = new FlipAnimation(targetPivot, Math.PI, 0.6, () => {
-                    currentIndex++;
-                    isAnimating = false;
-                    currentAnimation = null;
-                });
-            } else {
-                isAnimating = false;
-            }
+            if (currentPage >= totalPages) return;
+            pages[currentPage].classList.add('flipped');
+            currentPage++;
+            updateZIndex();
         }
 
         function flipBackward() {
-            if (isAnimating) return;
-
-            isAnimating = true;
-
-            if (currentIndex === 0) {
-                currentAnimation = new FlipAnimation(frontCoverPivot, 0, 0.6, () => {
-                    currentIndex--;
-                    isAnimating = false;
-                    currentAnimation = null;
-                });
-            } else if (currentIndex > 0) {
-                currentIndex--;
-                const targetPivot = pagePairs[currentIndex].pivot;
-                currentAnimation = new FlipAnimation(targetPivot, 0, 0.6, () => {
-                    isAnimating = false;
-                    currentAnimation = null;
-                });
-            } else {
-                isAnimating = false;
-            }
+            if (currentPage <= 0) return;
+            currentPage--;
+            pages[currentPage].classList.remove('flipped');
+            updateZIndex();
         }
 
-        renderer.domElement.addEventListener('mousedown', (event) => {
-            event.preventDefault();
-            if (event.button === 0) {
+        document.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            if (e.button === 0) {
                 flipForward();
-            } else if (event.button === 2) {
+            } else if (e.button === 2) {
                 flipBackward();
             }
         });
 
-        renderer.domElement.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
         });
 
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const delta = clock.getDelta();
-
-            if (currentAnimation) {
-                currentAnimation.update(delta);
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        animate();
+        updateZIndex();
     </script>
 </body>
 </html>
