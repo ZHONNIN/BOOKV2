@@ -2,114 +2,188 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Flipbook</title>
+    <title>3D Book</title>
     <style>
         body {
             margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #e8e8e8;
-            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-        #book {
-            position: relative;
-            width: 400px;
-            height: 600px;
-            perspective: 1500px;
-        }
-        .page {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            transform-origin: left center;
-            transition: transform 0.8s ease-in-out;
-            backface-visibility: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .page:nth-child(1) {
-            background: #8b4513;
-            color: white;
-        }
-        .page:nth-child(2),
-        .page:nth-child(3),
-        .page:nth-child(4),
-        .page:nth-child(5),
-        .page:nth-child(6),
-        .page:nth-child(7) {
-            background: #fffef0;
-            color: #333;
-        }
-        .page:nth-child(8) {
-            background: #654321;
-            color: white;
-        }
-        .flipped {
-            transform: rotateY(-180deg);
+        canvas {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div id="book">
-        <div class="page">Front Cover</div>
-        <div class="page">Page 2</div>
-        <div class="page">Page 3</div>
-        <div class="page">Page 4</div>
-        <div class="page">Page 5</div>
-        <div class="page">Page 6</div>
-        <div class="page">Page 7</div>
-        <div class="page">Back Cover</div>
-    </div>
-    <script>
-        let currentPage = 0;
-        const pages = document.querySelectorAll('.page');
-        const totalPages = pages.length;
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
 
-        function updateZIndex() {
-            pages.forEach((page, index) => {
-                if (index < currentPage) {
-                    page.style.zIndex = index;
-                } else {
-                    page.style.zIndex = totalPages - index + totalPages;
+        const BOOK_WIDTH = 2.0;
+        const BOOK_HEIGHT = 3.0;
+        const PAGE_THICKNESS = 0.02;
+        const TOTAL_PAGES = 8;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2a2a2a);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 5);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        const bookGroup = new THREE.Group();
+        scene.add(bookGroup);
+
+        const pages = [];
+
+        for (let i = 0; i < TOTAL_PAGES; i++) {
+            const pivot = new THREE.Group();
+            pivot.position.x = -BOOK_WIDTH / 2;
+
+            const pageGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, PAGE_THICKNESS);
+
+            let pageMat;
+            if (i === 0) {
+                pageMat = new THREE.MeshStandardMaterial({
+                    color: 0x8b4513,
+                    side: THREE.DoubleSide
+                });
+            } else if (i === TOTAL_PAGES - 1) {
+                pageMat = new THREE.MeshStandardMaterial({
+                    color: 0x654321,
+                    side: THREE.DoubleSide
+                });
+            } else {
+                pageMat = new THREE.MeshStandardMaterial({
+                    color: 0xf5f5dc,
+                    side: THREE.DoubleSide
+                });
+            }
+
+            const pageMesh = new THREE.Mesh(pageGeo, pageMat);
+            pageMesh.position.set(BOOK_WIDTH / 2, 0, 0);
+
+            pivot.add(pageMesh);
+            bookGroup.add(pivot);
+
+            pages.push({ pivot, mesh: pageMesh, targetRotation: 0, currentRotation: 0 });
+        }
+
+        let currentPageIndex = 0;
+
+        class PageAnimation {
+            constructor(page, targetRotation, duration, callback) {
+                this.page = page;
+                this.startRotation = page.currentRotation;
+                this.targetRotation = targetRotation;
+                this.duration = duration;
+                this.elapsed = 0;
+                this.callback = callback;
+            }
+
+            update(delta) {
+                this.elapsed += delta;
+                const progress = Math.min(this.elapsed / this.duration, 1);
+                const eased = progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+                const rotation = this.startRotation + (this.targetRotation - this.startRotation) * eased;
+                this.page.pivot.rotation.y = rotation;
+                this.page.currentRotation = rotation;
+
+                if (progress >= 1) {
+                    this.page.pivot.rotation.y = this.targetRotation;
+                    this.page.currentRotation = this.targetRotation;
+                    this.page.targetRotation = this.targetRotation;
+                    if (this.callback) this.callback();
+                    return true;
                 }
+                return false;
+            }
+        }
+
+        let currentAnimation = null;
+        let isAnimating = false;
+
+        function flipForward() {
+            if (isAnimating) return;
+            if (currentPageIndex >= TOTAL_PAGES) return;
+
+            isAnimating = true;
+            const page = pages[currentPageIndex];
+
+            currentAnimation = new PageAnimation(page, Math.PI, 0.8, () => {
+                currentPageIndex++;
+                isAnimating = false;
+                currentAnimation = null;
             });
         }
 
-        function flipForward() {
-            if (currentPage >= totalPages) return;
-            pages[currentPage].classList.add('flipped');
-            currentPage++;
-            updateZIndex();
-        }
-
         function flipBackward() {
-            if (currentPage <= 0) return;
-            currentPage--;
-            pages[currentPage].classList.remove('flipped');
-            updateZIndex();
+            if (isAnimating) return;
+            if (currentPageIndex <= 0) return;
+
+            isAnimating = true;
+            currentPageIndex--;
+            const page = pages[currentPageIndex];
+
+            currentAnimation = new PageAnimation(page, 0, 0.8, () => {
+                isAnimating = false;
+                currentAnimation = null;
+            });
         }
 
-        document.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            if (e.button === 0) {
+        document.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            if (event.button === 0) {
                 flipForward();
-            } else if (e.button === 2) {
+            } else if (event.button === 2) {
                 flipBackward();
             }
         });
 
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+        document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
         });
 
-        updateZIndex();
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            if (currentAnimation) {
+                currentAnimation.update(delta);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
     </script>
 </body>
 </html>
