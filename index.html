@@ -106,7 +106,7 @@
 
         const backCoverPivot = new THREE.Group();
         backCoverPivot.position.x = -BOOK_WIDTH / 2;
-        backCoverPivot.rotation.y = -Math.PI;
+        backCoverPivot.rotation.y = Math.PI;
         bookGroup.add(backCoverPivot);
 
         const backCoverGeo = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, COVER_THICKNESS);
@@ -118,7 +118,7 @@
         backCoverMesh.position.set(BOOK_WIDTH / 2, 0, -((NUM_SHEETS + 0.5) * PAGE_THICKNESS * 2 + COVER_THICKNESS / 2));
         backCoverPivot.add(backCoverMesh);
 
-        let currentIndex = 0;
+        let currentIndex = -1;
         let isAnimating = false;
         let animationQueue = [];
 
@@ -154,30 +154,48 @@
 
         function flipForward() {
             if (isAnimating) return;
-            if (currentIndex >= NUM_SHEETS) return;
 
             isAnimating = true;
-            const targetPivot = pagePairs[currentIndex].pivot;
 
-            currentAnimation = new FlipAnimation(targetPivot, -Math.PI, 0.6, () => {
-                currentIndex++;
+            if (currentIndex === -1) {
+                currentAnimation = new FlipAnimation(frontCoverPivot, Math.PI, 0.6, () => {
+                    currentIndex++;
+                    isAnimating = false;
+                    currentAnimation = null;
+                });
+            } else if (currentIndex < NUM_SHEETS) {
+                const targetPivot = pagePairs[currentIndex].pivot;
+                currentAnimation = new FlipAnimation(targetPivot, Math.PI, 0.6, () => {
+                    currentIndex++;
+                    isAnimating = false;
+                    currentAnimation = null;
+                });
+            } else {
                 isAnimating = false;
-                currentAnimation = null;
-            });
+            }
         }
 
         function flipBackward() {
             if (isAnimating) return;
-            if (currentIndex <= 0) return;
 
             isAnimating = true;
-            currentIndex--;
-            const targetPivot = pagePairs[currentIndex].pivot;
 
-            currentAnimation = new FlipAnimation(targetPivot, 0, 0.6, () => {
+            if (currentIndex === 0) {
+                currentAnimation = new FlipAnimation(frontCoverPivot, 0, 0.6, () => {
+                    currentIndex--;
+                    isAnimating = false;
+                    currentAnimation = null;
+                });
+            } else if (currentIndex > 0) {
+                currentIndex--;
+                const targetPivot = pagePairs[currentIndex].pivot;
+                currentAnimation = new FlipAnimation(targetPivot, 0, 0.6, () => {
+                    isAnimating = false;
+                    currentAnimation = null;
+                });
+            } else {
                 isAnimating = false;
-                currentAnimation = null;
-            });
+            }
         }
 
         renderer.domElement.addEventListener('mousedown', (event) => {
